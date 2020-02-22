@@ -1,0 +1,33 @@
+SOURCE_COPY_IN := update-sources
+SOURCE_COPY_OUT := update-commit-push update-pullrequest
+
+BASE_BRANCH=$(BRANCH_$(subst -,_,$(COMPONENT)))
+
+GIT_BASE ?= QubesOS
+
+GIT_UPDATE ?= fepitre-bot
+GIT_BASEURL_UPDATE ?= git@github.com:
+GIT_PREFIX_UPDATE ?= $(GIT_UPDATE)/qubes-
+
+ifeq ($(DEBUG),1)
+HUB_VERBOSE=1
+endif
+
+update-sources:
+	make -C $(ORIG_SRC) update-sources
+
+update-commit-push:
+	$(eval VERSION=$(shell cat $(ORIG_SRC)/version))
+	$(eval UPDATE_BRANCH=update-v$(VERSION))
+	git -C $(ORIG_SRC) checkout -b $(UPDATE_BRANCH)
+	echo 1 > $(ORIG_SRC)/rel
+	git -C $(ORIG_SRC) add version rel config-base
+	git -C $(ORIG_SRC) commit -m "Update to $(COMPONENT)-$(VERSION)"
+	git -C $(ORIG_SRC) remote add $(GIT_UPDATE) $(GIT_BASEURL_UPDATE)$(GIT_PREFIX_UPDATE)linux-kernel || true
+	git -C $(ORIG_SRC) push -u $(GIT_UPDATE) $(UPDATE_BRANCH)
+
+update-pullrequest:
+	$(eval VERSION=$(shell cat $(ORIG_SRC)/version))
+	$(eval UPDATE_BRANCH=update-v$(VERSION))
+	# TODO: check why 'hub -C $(ORIG_SRC)' fails after logging 
+	cd $(ORIG_SRC) && hub pull-request --no-edit --base $(GIT_BASE):$(BASE_BRANCH) --head $(GIT_UPDATE):$(UPDATE_BRANCH)
