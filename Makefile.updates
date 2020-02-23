@@ -8,7 +8,7 @@ GIT_UPDATE ?= fepitre-bot
 GIT_BASEURL_UPDATE ?= git@github.com:
 GIT_PREFIX_UPDATE ?= $(GIT_UPDATE)/qubes-
 
-ifeq ($(DEBUG),1)
+ifeq ($(VERBOSE),2)
 HUB_VERBOSE=1
 endif
 
