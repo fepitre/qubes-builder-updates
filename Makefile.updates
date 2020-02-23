@@ -1,9 +1,8 @@
-SOURCE_COPY_IN := update-sources
-SOURCE_COPY_OUT := update-commit-push update-pullrequest
-
-BASE_BRANCH=$(BRANCH_$(subst -,_,$(COMPONENT)))
+SOURCE_COPY_IN := update-sources update-commit
+SOURCE_COPY_OUT := update-push-pr
 
 GIT_BASE ?= QubesOS
+GIT_BASE_BRANCH ?= $(BRANCH_$(subst -,_,$(COMPONENT)))
 
 GIT_UPDATE ?= fepitre-bot
 GIT_BASEURL_UPDATE ?= git@github.com:
@@ -13,21 +12,35 @@ ifeq ($(DEBUG),1)
 HUB_VERBOSE=1
 endif
 
+GIT := git -C $(ORIG_SRC)
+
 update-sources:
+# This plugin should not be used in dev env
+# we stash (backup) any current work/modifications
+	$(GIT) stash
+	$(GIT) checkout $(GIT_BASE_BRANCH)
+# At this level we assume 'update-sources' target
+# is not letting uncommited changes in case of failure
 	make -C $(ORIG_SRC) update-sources
 
-update-commit-push:
+update-commit:
 	$(eval VERSION=$(shell cat $(ORIG_SRC)/version))
-	$(eval UPDATE_BRANCH=update-v$(VERSION))
-	git -C $(ORIG_SRC) checkout -b $(UPDATE_BRANCH)
+	$(eval GIT_UPDATE_BRANCH=update-v$(VERSION))
+# In case of previous build failed
+# we delete existing update branch
+	$(GIT) branch -D $(GIT_UPDATE_BRANCH) || true
+	$(GIT) checkout -b $(GIT_UPDATE_BRANCH)
 	echo 1 > $(ORIG_SRC)/rel
-	git -C $(ORIG_SRC) add version rel config-base
-	git -C $(ORIG_SRC) commit -m "Update to $(COMPONENT)-$(VERSION)"
-	git -C $(ORIG_SRC) remote add $(GIT_UPDATE) $(GIT_BASEURL_UPDATE)$(GIT_PREFIX_UPDATE)linux-kernel || true
-	git -C $(ORIG_SRC) push -u $(GIT_UPDATE) $(UPDATE_BRANCH)
+	$(GIT) add version rel config-base
+	$(GIT) commit -m "Update to $(COMPONENT)-$(VERSION)"
 
-update-pullrequest:
+update-push-pr:
 	$(eval VERSION=$(shell cat $(ORIG_SRC)/version))
-	$(eval UPDATE_BRANCH=update-v$(VERSION))
-	# TODO: check why 'hub -C $(ORIG_SRC)' fails after logging 
-	cd $(ORIG_SRC) && hub pull-request --no-edit --base $(GIT_BASE):$(BASE_BRANCH) --head $(GIT_UPDATE):$(UPDATE_BRANCH)
+	$(eval GIT_UPDATE_BRANCH=update-v$(VERSION))
+# In qubes-infrastructure build vms, the git remove
+# will be set at the first build so skip if
+# sources are not removed
+	$(GIT) remote add $(GIT_UPDATE) $(GIT_BASEURL_UPDATE)$(GIT_PREFIX_UPDATE)linux-kernel || true
+	$(GIT) push -u $(GIT_UPDATE) $(GIT_UPDATE_BRANCH)
+# TODO: check why 'hub -C $(ORIG_SRC)' fails after logging 
+	cd $(ORIG_SRC) && hub pull-request --no-edit --base $(GIT_BASE):$(GIT_BASE_BRANCH) --head $(GIT_UPDATE):$(GIT_UPDATE_BRANCH)
