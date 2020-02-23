@@ -8,9 +8,9 @@ GIT_UPDATE ?= fepitre-bot
 GIT_BASEURL_UPDATE ?= git@github.com:
 GIT_PREFIX_UPDATE ?= $(GIT_UPDATE)/qubes-
 
-ifeq ($(DEBUG),1)
-HUB_VERBOSE=1
-endif
+#ifeq ($(DEBUG),1)
+#HUB_VERBOSE=1
+#endif
 
 GIT := git -C $(ORIG_SRC)
 
@@ -34,13 +34,17 @@ update-commit:
 	$(GIT) add version rel config-base
 	$(GIT) commit -m "Update to $(COMPONENT)-$(VERSION)"
 
+# TODO: check why 'hub -C $(ORIG_SRC)' fails after logging
 update-push-pr:
 	$(eval VERSION=$(shell cat $(ORIG_SRC)/version))
 	$(eval GIT_UPDATE_BRANCH=update-v$(VERSION))
+	$(eval GIT_PR_TITLE="UPDATE: $(VERSION)")
+	$(eval PR_EXISTS=$(shell hub -C $(ORIG_SRC) pr list -f '%t%n' | grep $(GIT_PR_TITLE)))
 # In qubes-infrastructure build vms, the git remove
 # will be set at the first build so skip if
 # sources are not removed
-	$(GIT) remote add $(GIT_UPDATE) $(GIT_BASEURL_UPDATE)$(GIT_PREFIX_UPDATE)linux-kernel || true
-	$(GIT) push -u $(GIT_UPDATE) $(GIT_UPDATE_BRANCH)
-# TODO: check why 'hub -C $(ORIG_SRC)' fails after logging 
-	cd $(ORIG_SRC) && hub pull-request --no-edit --base $(GIT_BASE):$(GIT_BASE_BRANCH) --head $(GIT_UPDATE):$(GIT_UPDATE_BRANCH)
+	if [ -z "$(PR_EXISTS)" ]; then \
+		$(GIT) remote add $(GIT_UPDATE) $(GIT_BASEURL_UPDATE)$(GIT_PREFIX_UPDATE)linux-kernel || true; \
+		$(GIT) push -u $(GIT_UPDATE) $(GIT_UPDATE_BRANCH); \
+		cd $(ORIG_SRC) && hub pull-request -m $(GIT_PR_TITLE) --base $(GIT_BASE):$(GIT_BASE_BRANCH) --head $(GIT_UPDATE):$(GIT_UPDATE_BRANCH); \
+	fi;
