@@ -1,8 +1,8 @@
-SOURCE_COPY_IN := update-sources update-commit
-SOURCE_COPY_OUT := update-push-pr
+SOURCE_COPY_IN := update-pre-build
+SOURCE_COPY_OUT := update-post-build
 
 GIT_BASE ?= QubesOS
-GIT_BASE_BRANCH ?= $(BRANCH_$(subst -,_,$(COMPONENT)))
+GIT_BASE_BRANCH ?= $(firstword $(BRANCH_$(subst -,_,$(COMPONENT))) $(BRANCH))
 
 GIT_UPDATE ?= fepitre-bot
 GIT_BASEURL_UPDATE ?= git@github.com:
@@ -12,39 +12,12 @@ ifeq ($(VERBOSE),2)
 HUB_VERBOSE=1
 endif
 
-GIT := git -C $(ORIG_SRC)
-
-update-sources:
-# This plugin should not be used in dev env
-# we stash (backup) any current work/modifications
-	$(GIT) stash
-	$(GIT) checkout $(GIT_BASE_BRANCH)
-# At this level we assume 'update-sources' target
-# is not letting uncommited changes in case of failure
-	make -C $(ORIG_SRC) update-sources
-
-update-commit:
-	$(eval VERSION=$(shell cat $(ORIG_SRC)/version))
-	$(eval GIT_UPDATE_BRANCH=update-v$(VERSION))
-# In case of previous build failed
-# we delete existing update branch
-	$(GIT) branch -D $(GIT_UPDATE_BRANCH) || true
-	$(GIT) checkout -b $(GIT_UPDATE_BRANCH)
-	echo 1 > $(ORIG_SRC)/rel
-	$(GIT) add version rel config-base
-	$(GIT) commit -m "Update to $(COMPONENT)-$(VERSION)"
-
-# TODO: check why 'hub -C $(ORIG_SRC)' fails after logging
-update-push-pr:
-	$(eval VERSION=$(shell cat $(ORIG_SRC)/version))
-	$(eval GIT_UPDATE_BRANCH=update-v$(VERSION))
-	$(eval GIT_PR_TITLE="UPDATE: $(VERSION)")
-	$(eval PR_EXISTS=$(shell hub -C $(ORIG_SRC) pr list -f '%t%n' | grep $(GIT_PR_TITLE)))
-# In qubes-infrastructure build vms, the git remove
-# will be set at the first build so skip if
-# sources are not removed
-	if [ -z "$(PR_EXISTS)" ]; then \
-		$(GIT) remote add $(GIT_UPDATE) $(GIT_BASEURL_UPDATE)$(GIT_PREFIX_UPDATE)linux-kernel || true; \
-		$(GIT) push -u $(GIT_UPDATE) $(GIT_UPDATE_BRANCH); \
-		cd $(ORIG_SRC) && hub pull-request -m $(GIT_PR_TITLE) --base $(GIT_BASE):$(GIT_BASE_BRANCH) --head $(GIT_UPDATE):$(GIT_UPDATE_BRANCH); \
+update-pre-build:
+	@$(BUILDER_UPDATES_DIR)/update-sources.sh "$(ORIG_SRC)" "$(GIT_BASE_BRANCH)"
+	@if [ -e "$(ORIG_SRC)/.skip_update" ]; then\
+		rm -rf "$(ORIG_SRC)/.skip_update"; \
+		$(eval PACKAGE_LIST=) echo "--> Skipping update for $(COMPONENT)..."; \
 	fi;
+
+update-post-build:
+	@$(BUILDER_UPDATES_DIR)/create-pullreques.sh "$(ORIG_SRC)" "$(GIT_BASE)" "$(GIT_BASE_BRANCH)" "$(GIT_UPDATE)" "$(GIT_BASEURL_UPDATE)" "$(GIT_PREFIX_UPDATE)"
