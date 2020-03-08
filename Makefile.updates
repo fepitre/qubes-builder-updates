@@ -1,6 +1,5 @@
-#SOURCE_PREP := update-pre-build
-#SOURCE_COPY_OUT := update-post-build
-
+SOURCE_PREP := update-pre-build
+SOURCE_COPY_OUT := update-post-build
 
 # PKGBUILD_TIMESTAMP := $(shell stat -c %Z $(OUTPUT) || echo 0)
 # LASTCOMMIT_TIMESTAMP := $(shell git -C $(ORIG_SRC) log -1 --format=%ct)
