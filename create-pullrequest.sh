@@ -6,7 +6,7 @@ if [ "${VERBOSE:-0}" -ge 2 ] || [ "${DEBUG:-0}" -eq 1 ]; then
 fi
 
 skip_remove() {
-    rm -rf "$GIT_SRC/.skip"
+    rm -rf "$DEST_DIR/build_timestamp"
 }
 
 GIT_SRC="$(readlink -f "$1")"
@@ -15,6 +15,8 @@ GIT_BASE_BRANCH="${3:-master}"
 GIT_UPDATE="${4:-fepitre-bot}"
 GIT_BASEURL_UPDATE="${5:-git@github.com:}"
 GIT_PREFIX_UPDATE="${6:-$GIT_UPDATE/qubes-}"
+
+DEST_DIR="$7"
 
 if [ -d "$GIT_SRC" ]; then
     trap 'skip_remove' 0 1 2 3 6 15

@@ -1,5 +1,20 @@
-SOURCE_PREP := update-pre-build
-SOURCE_COPY_OUT := update-post-build
+#SOURCE_PREP := update-pre-build
+#SOURCE_COPY_OUT := update-post-build
+
+
+# PKGBUILD_TIMESTAMP := $(shell stat -c %Z $(OUTPUT) || echo 0)
+# LASTCOMMIT_TIMESTAMP := $(shell git -C $(ORIG_SRC) log -1 --format=%ct)
+
+#SOURCE = $(ORIG_SRC)/version
+#ifeq ($(INCREMENT_DEVEL_VERSION),1)
+#SOURCE += $(ORIG_SRC)/$(OUTPUT_DIR)/$(notdir $(PACKAGE)).devel
+#endif
+
+# ifeq ($(shell test $(PKGBUILD_TIMESTAMP) -lt $(LASTCOMMIT_TIMESTAMP); echo $$?),0)
+# undefine SOURCE
+# else
+# SOURCE=$(OUTPUT)
+# endif
 
 GIT_BASE ?= QubesOS
 GIT_BASE_BRANCH ?= $(firstword $(BRANCH_$(subst -,_,$(COMPONENT))) $(BRANCH))
@@ -13,10 +28,7 @@ HUB_VERBOSE=1
 endif
 
 update-pre-build:
-	@$(BUILDER_UPDATES_DIR)/update-sources.sh "$(ORIG_SRC)" "$(GIT_BASE_BRANCH)"
+	@$(BUILDER_UPDATES_DIR)/update-sources.sh "$(ORIG_SRC)" "$(GIT_BASE_BRANCH)" "$(BUILDER_DIR)/$(ORIG_SRC)/$(OUTPUT_DIR)"
 
 update-post-build:
-	@$(BUILDER_UPDATES_DIR)/create-pullrequest.sh "$(ORIG_SRC)" "$(GIT_BASE)" "$(GIT_BASE_BRANCH)" "$(GIT_UPDATE)" "$(GIT_BASEURL_UPDATE)" "$(GIT_PREFIX_UPDATE)"
-
-packages::
-	$(eval PACKAGE_LIST=$(if $(wildcard $(ORIG_SRC)/.skip),,$(PACKAGE_LIST)))
+	@$(BUILDER_UPDATES_DIR)/create-pullrequest.sh "$(ORIG_SRC)" "$(GIT_BASE)" "$(GIT_BASE_BRANCH)" "$(GIT_UPDATE)" "$(GIT_BASEURL_UPDATE)" "$(GIT_PREFIX_UPDATE)" "$(BUILDER_DIR)/$(ORIG_SRC)/$(OUTPUT_DIR)"

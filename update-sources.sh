@@ -7,10 +7,12 @@ fi
 
 GIT_SRC="$(readlink -f "$1")"
 GIT_BASE_BRANCH="$2"
+DEST_DIR="$3"
 
 skip_update() {
-    if [ ! -e "$GIT_SRC/.skip" ]; then
-        touch "$GIT_SRC/.skip"
+    if [ -n "$DEST_DIR" ]; then
+        mkdir -p "$DEST_DIR"
+        touch "$DEST_DIR/build_timestamp"
     fi
 }
 
